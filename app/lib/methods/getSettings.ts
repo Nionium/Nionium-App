@@ -12,6 +12,22 @@ import sdk from '../services/sdk';
 import protectedFunction from './helpers/protectedFunction';
 import { parseSettings, _prepareSettings } from './parseSettings';
 import { setPresenceCap } from './getUsersPresence';
+import { coerce, gt, gte, lt, lte, SemVer } from 'semver';
+
+
+const methods = {
+	lowerThan: lt,
+	lowerThanOrEqualTo: lte,
+	greaterThan: gt,
+	greaterThanOrEqualTo: gte
+};
+
+export const compareServerVersion = (
+	currentServerVersion: string | null | undefined,
+	method: keyof typeof methods,
+	versionToCompare: string
+): boolean =>
+	(currentServerVersion && methods[method](coerce(currentServerVersion) as string | SemVer, versionToCompare)) as boolean;
 
 const serverInfoKeys = [
 	'Site_Name',
@@ -108,12 +124,14 @@ const serverInfoUpdate = async (serverInfo: IPreparedSettings[], iconSetting: IS
 	});
 };
 
-export async function getLoginSettings({ server }: { server: string }): Promise<void> {
+export async function getLoginSettings({ server, serverVersion }: { server: string; serverVersion: string }): Promise<void> {
+	const settingsParams = JSON.stringify(loginSettings);
+
+	const url = compareServerVersion(serverVersion, 'greaterThanOrEqualTo', '7.0.0')
+		? `${server}/api/v1/settings.public?_id=${loginSettings.join(',')}`
+		: `${server}/api/v1/settings.public?query={"_id":{"$in":${settingsParams}}}`;
 	try {
-		const settingsParams = JSON.stringify(loginSettings);
-		const result = await fetch(`${server}/api/v1/settings.public?query={"_id":{"$in":${settingsParams}}}`).then(response =>
-			response.json()
-		);
+		const result = await fetch(url).then(response => response.json());
 
 		if (result.success && result.settings.length) {
 			reduxStore.dispatch(clearSettings());
@@ -123,7 +141,6 @@ export async function getLoginSettings({ server }: { server: string }): Promise<
 		log(e);
 	}
 }
-
 export async function setSettings(): Promise<void> {
 	const db = database.active;
 	const settingsCollection = db.get('settings');

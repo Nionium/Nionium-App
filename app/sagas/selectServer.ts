@@ -227,12 +227,13 @@ const handleServerRequest = function* handleServerRequest({ server, username, fr
 		}
 
 		const serverInfo = yield* getServerInfoSaga({ server });
+
 		const serversDB = database.servers;
 		const serversHistoryCollection = serversDB.get('servers_history');
 
 		if (serverInfo) {
 			yield Services.getLoginServices(server);
-			yield getLoginSettings({ server });
+			yield getLoginSettings({ server, serverVersion: serverInfo.version });
 			Navigation.navigate('WorkspaceView');
 
 			const Accounts_iframe_enabled = yield* appSelector(state => state.settings.Accounts_iframe_enabled);
