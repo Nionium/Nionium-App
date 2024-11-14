@@ -1,5 +1,6 @@
 import { Q } from '@nozbe/watermelondb';
 import { sanitizedRaw } from '@nozbe/watermelondb/RawRecord';
+import { coerce, gt, gte, lt, lte, SemVer } from 'semver';
 
 import { addSettings, clearSettings } from '../../actions/settings';
 import { DEFAULT_AUTO_LOCK, defaultSettings } from '../constants';
@@ -12,7 +13,6 @@ import sdk from '../services/sdk';
 import protectedFunction from './helpers/protectedFunction';
 import { parseSettings, _prepareSettings } from './parseSettings';
 import { setPresenceCap } from './getUsersPresence';
-import { coerce, gt, gte, lt, lte, SemVer } from 'semver';
 
 
 const methods = {
@@ -171,14 +171,16 @@ export async function getSettings(): Promise<void> {
 		let remaining;
 		let settings: IData[] = [];
 
+		const serverVersion = reduxStore.getState().server.version;
+		const url = compareServerVersion(serverVersion, 'greaterThanOrEqualTo', '7.0.0')
+			? `${sdk.current.client.host}/api/v1/settings.public?_id=${settingsParams.join(',')}`
+			: `${sdk.current.client.host}/api/v1/settings.public?query={"_id":{"$in":${JSON.stringify(settingsParams)}}}`;
+
 		// Iterate over paginated results to retrieve all settings
 		do {
 			// TODO: why is no-await-in-loop enforced in the first place?
 			/* eslint-disable no-await-in-loop */
-			const response = await fetch(
-				`${sdk.current.client.host}/api/v1/settings.public?query={"_id":{"$in":${JSON.stringify(settingsParams)}}}
-				&offset=${offset}`
-			);
+			const response = await fetch(`${url}&offset=${offset}`);
 
 			const result = await response.json();
 

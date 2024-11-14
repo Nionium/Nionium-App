@@ -54,9 +54,6 @@ const WebViewAI = ({
 		}
 		setIsVisible(true);
 	};
-	
-
-	console.error(DeviceInfo.isTablet(), "yes?")
 
 	const RenderHeader = () => {
 		if (DeviceInfo.isTablet()) {
